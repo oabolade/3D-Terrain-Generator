@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.mapboxgl-map {
+  font-family: inherit;
+}
+
+.mapboxgl-canvas {
+  outline: none;
+}
+
+.mapboxgl-canvas-container {
+  height: 100%;
+  width: 100%;
+}
+
+.selection-box {
+  pointer-events: none;
+}
