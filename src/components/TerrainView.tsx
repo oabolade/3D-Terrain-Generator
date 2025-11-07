@@ -199,14 +199,18 @@ function generateSTL(geometry: THREE.BufferGeometry): string {
   return stl;
 }
 
-function SceneCapture({ onModelReady }: { onModelReady?: (scene: THREE.Scene) => void }) {
-  const { scene } = useThree();
+interface SceneCaptureProps {
+  onModelReady?: (scene: THREE.Scene, gl: THREE.WebGLRenderer) => void;
+}
+
+function SceneCapture({ onModelReady }: SceneCaptureProps) {
+  const { scene, gl } = useThree();
 
   useEffect(() => {
     if (onModelReady) {
-      onModelReady(scene);
+      onModelReady(scene, gl);
     }
-  }, [scene, onModelReady]);
+  }, [scene, gl, onModelReady]);
 
   return null;
 }
@@ -218,26 +222,38 @@ const TerrainView = forwardRef<TerrainViewRef, TerrainViewProps>(({
 }, ref) => {
   const [heightExaggeration, setHeightExaggeration] = useState(1);
   const [terrainStyle, setTerrainStyle] = useState<TerrainStyle>('satellite');
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
+  const glRef = useRef<THREE.WebGLRenderer | null>(null);
 
   useImperativeHandle(ref, () => ({
     exportPNG: () => {
-      if (!canvasRef.current) return;
+      if (!glRef.current) {
+        console.error('WebGL renderer not available');
+        return;
+      }
 
-      const canvas = canvasRef.current.querySelector('canvas');
-      if (!canvas) return;
+      try {
+        const canvas = glRef.current.domElement;
 
-      canvas.toBlob((blob) => {
-        if (!blob) return;
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            console.error('Failed to create blob from canvas');
+            return;
+          }
 
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = '3d-terrain-map.png';
-        link.click();
-        URL.revokeObjectURL(url);
-      }, 'image/png');
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = '3d-terrain-map.png';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, 'image/png', 1.0);
+      } catch (error) {
+        console.error('Error exporting PNG:', error);
+      }
     },
     exportSTL: () => {
       if (!sceneRef.current || !terrainData) return;
@@ -268,8 +284,9 @@ const TerrainView = forwardRef<TerrainViewRef, TerrainViewProps>(({
       {terrainData && selectedBounds ? (
         <>
           <Canvas shadows>
-            <SceneCapture onModelReady={(scene) => {
+            <SceneCapture onModelReady={(scene, gl) => {
               sceneRef.current = scene;
+              glRef.current = gl;
               onModelReady?.(scene);
             }} />
             <PerspectiveCamera makeDefault position={[15, 15, 15]} fov={50} />
