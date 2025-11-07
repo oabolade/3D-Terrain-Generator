@@ -225,34 +225,51 @@ const TerrainView = forwardRef<TerrainViewRef, TerrainViewProps>(({
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const glRef = useRef<THREE.WebGLRenderer | null>(null);
+  const cameraRef = useRef<THREE.Camera | null>(null);
 
   useImperativeHandle(ref, () => ({
     exportPNG: () => {
-      if (!glRef.current) {
-        console.error('WebGL renderer not available');
+      if (!glRef.current || !sceneRef.current || !cameraRef.current) {
+        console.error('WebGL renderer, scene, or camera not available');
+        alert('Unable to export PNG. Please try generating the 3D terrain first.');
         return;
       }
 
       try {
-        const canvas = glRef.current.domElement;
+        const renderer = glRef.current;
+        const scene = sceneRef.current;
+        const camera = cameraRef.current;
+        const canvas = renderer.domElement;
 
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            console.error('Failed to create blob from canvas');
-            return;
-          }
+        console.log('Exporting PNG...');
+        console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
 
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = '3d-terrain-map.png';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        }, 'image/png', 1.0);
+        // Force a fresh render
+        renderer.render(scene, camera);
+
+        // Attempt to get the image data
+        const dataURL = canvas.toDataURL('image/png', 1.0);
+
+        console.log('Data URL length:', dataURL.length);
+
+        if (!dataURL || dataURL === 'data:,' || dataURL.length < 100) {
+          console.error('Canvas appears empty or invalid');
+          alert('Failed to capture image. Canvas might be empty or there may be a CORS issue with textures.');
+          return;
+        }
+
+        // Download the image
+        const link = document.createElement('a');
+        link.href = dataURL;
+        link.download = '3d-terrain-map.png';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        console.log('PNG export completed successfully');
       } catch (error) {
         console.error('Error exporting PNG:', error);
+        alert('Failed to export PNG: ' + (error instanceof Error ? error.message : 'Unknown error'));
       }
     },
     exportSTL: () => {
@@ -283,10 +300,14 @@ const TerrainView = forwardRef<TerrainViewRef, TerrainViewProps>(({
     <div ref={canvasRef} className="w-full h-full bg-gradient-to-b from-sky-300 to-sky-50 rounded-2xl shadow-xl border border-gray-200 overflow-hidden relative">
       {terrainData && selectedBounds ? (
         <>
-          <Canvas shadows>
-            <SceneCapture onModelReady={(scene, gl) => {
+          <Canvas
+            shadows
+            gl={{ preserveDrawingBuffer: true }}
+          >
+            <SceneCapture onModelReady={(scene, gl, camera) => {
               sceneRef.current = scene;
               glRef.current = gl;
+              cameraRef.current = camera;
               onModelReady?.(scene);
             }} />
             <PerspectiveCamera makeDefault position={[15, 15, 15]} fov={50} />
