@@ -188,7 +188,9 @@ npm run preview
 - **Mapping**: Mapbox GL JS
 - **Styling**: Tailwind CSS
 - **Build Tool**: Vite
+- **Automation**: Make.com (webhook integration)
 - **Backend**: Supabase (for future data persistence)
+- **Hosting**: Vercel/Netlify (Static Build)
 
 ## API Credits
 
@@ -256,6 +258,14 @@ src/
 
 This project is open source and available for educational and personal use.
 
+## Roadmap (Future Enhancements)
+
+- Improved UI and visual elements
+- Enable team projects & versioning
+- Add AI terrain styling (e.g., “generate stylized look”)
+- Performance optimizations (LOD rendering and caching)
+- Add programmatic access for embedding and automated workflows
+
 ## Support
 
 For issues or questions:
@@ -266,5 +276,6 @@ For issues or questions:
 ##
 
 💬 Feedback & Contributions
+
 Pull requests, feature suggestions, or forks are welcome!
 If you build on this, tag your project with #3DMapGenerator and share it on LinkedIn or GitHub.
