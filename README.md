@@ -262,3 +262,9 @@ For issues or questions:
 1. Check the troubleshooting section above
 2. Verify your environment variables are set correctly
 3. Check the browser console for error messages
+
+##
+
+💬 Feedback & Contributions
+Pull requests, feature suggestions, or forks are welcome!
+If you build on this, tag your project with #3DMapGenerator and share it on LinkedIn or GitHub.
