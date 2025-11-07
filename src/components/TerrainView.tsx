@@ -200,17 +200,59 @@ function generateSTL(geometry: THREE.BufferGeometry): string {
 }
 
 interface SceneCaptureProps {
-  onModelReady?: (scene: THREE.Scene, gl: THREE.WebGLRenderer) => void;
+  onModelReady?: (scene: THREE.Scene) => void;
+  exportTrigger: number;
+  onExportComplete: (success: boolean, message?: string) => void;
 }
 
-function SceneCapture({ onModelReady }: SceneCaptureProps) {
-  const { scene, gl } = useThree();
+function SceneCapture({ onModelReady, exportTrigger, onExportComplete }: SceneCaptureProps) {
+  const { scene, gl, camera } = useThree();
+  const prevExportTrigger = useRef(0);
 
   useEffect(() => {
     if (onModelReady) {
-      onModelReady(scene, gl);
+      onModelReady(scene);
     }
-  }, [scene, gl, onModelReady]);
+  }, [scene, onModelReady]);
+
+  useEffect(() => {
+    if (exportTrigger > prevExportTrigger.current && exportTrigger > 0) {
+      prevExportTrigger.current = exportTrigger;
+
+      try {
+        console.log('Capturing PNG from inside Canvas...');
+        console.log('Scene children:', scene.children.length);
+        console.log('Canvas size:', gl.domElement.width, 'x', gl.domElement.height);
+
+        // Force render
+        gl.render(scene, camera);
+
+        // Get canvas data
+        const canvas = gl.domElement;
+        const dataURL = canvas.toDataURL('image/png', 1.0);
+        console.log('Data URL length:', dataURL.length);
+
+        if (!dataURL || dataURL === 'data:,' || dataURL.length < 100) {
+          onExportComplete(false, 'Canvas appears to be empty');
+          return;
+        }
+
+        // Download
+        const link = document.createElement('a');
+        link.href = dataURL;
+        link.download = '3d-terrain-map.png';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        console.log('PNG export successful!');
+        onExportComplete(true);
+      } catch (error) {
+        console.error('Export error:', error);
+        onExportComplete(false, error instanceof Error ? error.message : 'Unknown error');
+      }
+    }
+  }, [exportTrigger, scene, gl, camera, onExportComplete]);
 
   return null;
 }
@@ -222,55 +264,25 @@ const TerrainView = forwardRef<TerrainViewRef, TerrainViewProps>(({
 }, ref) => {
   const [heightExaggeration, setHeightExaggeration] = useState(1);
   const [terrainStyle, setTerrainStyle] = useState<TerrainStyle>('satellite');
+  const [exportTrigger, setExportTrigger] = useState(0);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
-  const glRef = useRef<THREE.WebGLRenderer | null>(null);
-  const cameraRef = useRef<THREE.Camera | null>(null);
+
+  const handleExportComplete = (success: boolean, message?: string) => {
+    if (!success) {
+      console.error('Export failed:', message);
+      alert(`Failed to export PNG: ${message || 'Unknown error'}`);
+    }
+  };
 
   useImperativeHandle(ref, () => ({
     exportPNG: () => {
-      if (!glRef.current || !sceneRef.current || !cameraRef.current) {
-        console.error('WebGL renderer, scene, or camera not available');
-        alert('Unable to export PNG. Please try generating the 3D terrain first.');
+      if (!terrainData || !selectedBounds) {
+        alert('Unable to export PNG. Please generate the 3D terrain first.');
         return;
       }
-
-      try {
-        const renderer = glRef.current;
-        const scene = sceneRef.current;
-        const camera = cameraRef.current;
-        const canvas = renderer.domElement;
-
-        console.log('Exporting PNG...');
-        console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
-
-        // Force a fresh render
-        renderer.render(scene, camera);
-
-        // Attempt to get the image data
-        const dataURL = canvas.toDataURL('image/png', 1.0);
-
-        console.log('Data URL length:', dataURL.length);
-
-        if (!dataURL || dataURL === 'data:,' || dataURL.length < 100) {
-          console.error('Canvas appears empty or invalid');
-          alert('Failed to capture image. Canvas might be empty or there may be a CORS issue with textures.');
-          return;
-        }
-
-        // Download the image
-        const link = document.createElement('a');
-        link.href = dataURL;
-        link.download = '3d-terrain-map.png';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        console.log('PNG export completed successfully');
-      } catch (error) {
-        console.error('Error exporting PNG:', error);
-        alert('Failed to export PNG: ' + (error instanceof Error ? error.message : 'Unknown error'));
-      }
+      console.log('Triggering PNG export...');
+      setExportTrigger(prev => prev + 1);
     },
     exportSTL: () => {
       if (!sceneRef.current || !terrainData) return;
@@ -304,12 +316,14 @@ const TerrainView = forwardRef<TerrainViewRef, TerrainViewProps>(({
             shadows
             gl={{ preserveDrawingBuffer: true }}
           >
-            <SceneCapture onModelReady={(scene, gl, camera) => {
-              sceneRef.current = scene;
-              glRef.current = gl;
-              cameraRef.current = camera;
-              onModelReady?.(scene);
-            }} />
+            <SceneCapture
+              onModelReady={(scene) => {
+                sceneRef.current = scene;
+                onModelReady?.(scene);
+              }}
+              exportTrigger={exportTrigger}
+              onExportComplete={handleExportComplete}
+            />
             <PerspectiveCamera makeDefault position={[15, 15, 15]} fov={50} />
             <OrbitControls
               enablePan={true}
