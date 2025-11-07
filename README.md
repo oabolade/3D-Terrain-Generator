@@ -279,3 +279,11 @@ For issues or questions:
 
 Pull requests, feature suggestions, or forks are welcome!
 If you build on this, tag your project with #3DMapGenerator and share it on LinkedIn or GitHub.
+
+##
+
+🧠 Learning & Acknowledgements
+- Elevation data © Mapbox / NASA SRTM
+- Mapbox GL JS documentation: https://docs.mapbox.com/mapbox-gl-js
+- Three.js documentation: https://threejs.org/docs
+- Built as part of a 90-Day AI Product Manager Transition Roadmap (Phase 1, Week 4) by Olasile Abolade
